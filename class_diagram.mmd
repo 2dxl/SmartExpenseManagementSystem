@@ -1,0 +1,73 @@
+classDiagram
+    %% ===== 1. 도메인 모델 (결제 내역 & 세부 품목) =====
+    class Payment {
+        -String transactionId
+        -LocalDateTime dateTime
+        -String merchant
+        -long totalAmount
+        -boolean matched
+        -List~ReceiptItem~ items
+        +attachItems(List~ReceiptItem~ items) void
+    }
+
+    class ReceiptItem {
+        -String itemName
+        -long unitPrice
+        -int quantity
+        -String category
+        +getAmount() long
+    }
+
+    Payment "1" o-- "0..*" ReceiptItem : contains
+
+    %% ===== 2. 입력 및 로컬 LLM API 연동 =====
+    class CsvPaymentParser {
+        +parse(Path csvFile) List~Payment~
+    }
+
+    class LocalLlmClient {
+        -String endpointUrl
+        -HttpClient httpClient
+        +extractItemsFromReceipt(Payment payment, Path receiptFile) List~ReceiptItem~
+        +analyzeJson(String systemPrompt, String payloadJson) String
+    }
+
+    CsvPaymentParser ..> Payment : creates
+
+    %% ===== 3. 핵심 3대 기능 서비스 =====
+    class ReceiptMatchingService {
+        -LocalLlmClient llmClient
+        +matchReceipts(List~Payment~ payments, Map~String, Path~ receiptFiles) List~Payment~
+    }
+
+    class SmallPaymentAnalyzer {
+        -long smallThreshold
+        -LocalLlmClient llmClient
+        +filterSmallPayments(List~Payment~ payments) List~Payment~
+        +analyzePattern(List~Payment~ payments) String
+    }
+
+    class SubscriptionAnalyzer {
+        -LocalLlmClient llmClient
+        +detectSubscriptions(List~Payment~ threeMonthPayments) String
+    }
+
+    ReceiptMatchingService --> LocalLlmClient
+    ReceiptMatchingService ..> Payment : updates
+    ReceiptMatchingService ..> ReceiptItem : attaches
+
+    SmallPaymentAnalyzer --> LocalLlmClient
+    SmallPaymentAnalyzer ..> Payment : analyzes
+
+    SubscriptionAnalyzer --> LocalLlmClient
+    SubscriptionAnalyzer ..> Payment : analyzes
+
+    %% ===== 4. 실행 진입점 =====
+    class Main {
+        +main(String[] args) void
+    }
+
+    Main --> CsvPaymentParser
+    Main --> ReceiptMatchingService
+    Main --> SmallPaymentAnalyzer
+    Main --> SubscriptionAnalyzer
