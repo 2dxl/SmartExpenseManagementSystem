@@ -1,8 +1,6 @@
 package app;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.YearMonth;
@@ -11,19 +9,20 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import llm.LlmClient;
+import llm.LocalLlmClient;
 import model.Payment;
 import model.ReceiptItem;
 import parser.CsvPaymentParser;
 
 /**
  * 3개월 결제 CSV와 영수증 파일을 읽어 매칭·소액·구독 분석을 실행하는 진입점.
- * 추후 LocalLlmClient 연동 시 영수증 추출 및 패턴 요약 부분을 해당 서비스 호출로 교체합니다.
  */
 public final class Main {
     private static final long SMALL_PAYMENT_THRESHOLD = 10000;
 
     public static void main(String[] args) {
-        Path csvPath = Paths.get(args.length > 0 ? args[0] : "data/payments_3months.csv");
+        Path csvPath = Paths.get(args.length > 0 ? args[0] : "data/국내승인내역.csv");
         Path receiptDir = Paths.get(args.length > 1 ? args[1] : "data/receipts");
 
         System.out.println("=== SmartExpenseManagementSystem (3개월 데이터) ===");
@@ -33,8 +32,9 @@ public final class Main {
             List<Payment> payments = parser.parse(csvPath);
             System.out.println("\n[1단계] 결제 내역 로드 완료: " + payments.size() + "건 (" + csvPath + ")");
 
-            // 2단계: 영수증 파일 매칭 (추후 ReceiptMatchingService + LocalLlmClient로 교체)
-            matchReceiptFiles(payments, receiptDir);
+            // 2단계: 영수증 파일 매칭 (LocalLlmClient 연동 준비, 매칭 로직은 추후 구현)
+            LlmClient llmClient = LocalLlmClient.forSunmoonLlmFromConfig();
+            matchReceiptFiles(payments, receiptDir, llmClient);
             long matchedCount = payments.stream().filter(Payment::isMatched).count();
             System.out.println("[2단계] 영수증 매칭 완료: " + matchedCount + "/" + payments.size() + "건");
 
@@ -54,33 +54,8 @@ public final class Main {
         }
     }
 
-    private static void matchReceiptFiles(List<Payment> payments, Path receiptDir) throws IOException {
-        if (!Files.isDirectory(receiptDir)) {
-            return;
-        }
-        for (Payment payment : payments) {
-            Path receiptFile = receiptDir.resolve(payment.getTransactionId() + ".txt");
-            if (!Files.exists(receiptFile)) {
-                continue;
-            }
-            List<ReceiptItem> items = new ArrayList<>();
-            for (String line : Files.readAllLines(receiptFile, StandardCharsets.UTF_8)) {
-                if (line.trim().isEmpty()) {
-                    continue;
-                }
-                String[] cols = line.split(",", -1);
-                if (cols.length == 4) {
-                    items.add(new ReceiptItem(
-                            cols[0].trim(),
-                            Long.parseLong(cols[1].trim()),
-                            Integer.parseInt(cols[2].trim()),
-                            cols[3].trim()));
-                }
-            }
-            if (!items.isEmpty()) {
-                payment.attachItems(items);
-            }
-        }
+    private static void matchReceiptFiles(List<Payment> payments, Path receiptDir, LlmClient llmClient) {
+        // TODO: 추후 ReceiptMatchingService(llmClient) 연동
     }
 
     private static void printMonthlySummary(List<Payment> payments) {

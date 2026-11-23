@@ -1,0 +1,10 @@
+# 개인 API 키가 담긴 로컬 환경 설정 및 안내 문서 (Git 업로드 제외)
+.env
+.env.local
+\[선문대학교 LLM\] 개인 API 키 발급 안내.pdf
+*API 키 발급 안내*.pdf
+
+# 테스트 및 개인 결제/영수증 데이터
+tests/
+data/receipts/
+data/국내승인내역.csv
