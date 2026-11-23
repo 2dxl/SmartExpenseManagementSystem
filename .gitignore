@@ -8,3 +8,7 @@
 tests/
 data/receipts/
 data/국내승인내역.csv
+
+# 개발 가이드 문서
+team_development_guide.md
+team_development_guide.pdf
